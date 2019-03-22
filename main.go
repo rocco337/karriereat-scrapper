@@ -1,14 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gocolly/colly"
+	_ "github.com/lib/pq"
 )
 
 const firstJobPageUrl string = "https://www.karriere.at/jobs?page=%d"
@@ -17,13 +20,13 @@ func main() {
 	fmt.Println("Starting...")
 
 	var jobDetailsChannel chan *JobsDetails = make(chan *JobsDetails)
-	go saveResultToFile(jobDetailsChannel)
+	go saveResultToDb(jobDetailsChannel)
 
 	start := time.Now()
 
-	noOfPAges := 10
+	noOfPAges := 500
 	scrapPage(noOfPAges, jobDetailsChannel)
-	//wg.Wait()
+
 	elapsed := time.Since(start)
 	fmt.Println("Elapsed", elapsed)
 }
@@ -32,10 +35,11 @@ func scrapPage(noOfPAges int, c chan *JobsDetails) {
 	collector := getNewColletcor()
 
 	collector.OnHTML(".m-jobItem__titleLink", func(e *colly.HTMLElement) {
-		go collector.Visit(e.Attr("href"))
+		collector.Visit(e.Attr("href"))
 	})
 
 	collector.OnHTML(".c-jobDetail", func(e *colly.HTMLElement) {
+		fmt.Println("jobDetail", e.Request.URL.String())
 		result := new(JobsDetails)
 		result.Url = e.Request.URL.String()
 		result.Title = e.DOM.Find(".m-jobHeader__container .m-jobHeader__jobTitle").Text()
@@ -47,7 +51,7 @@ func scrapPage(noOfPAges int, c chan *JobsDetails) {
 
 		html := e.DOM.Find(".m-jobContent__jobText").Text()
 		result.Content = html
-		//c <- result
+		c <- result
 	})
 
 	collector.OnRequest(func(r *colly.Request) {
@@ -64,32 +68,45 @@ func scrapPage(noOfPAges int, c chan *JobsDetails) {
 		fmt.Println("Scrapping", url)
 		collector.Visit(url)
 		i = i + 1
+		if i%5 == 0 {
+			collector.Wait()
+		}
 	}
 
 	collector.Wait()
 }
 
-func saveResultToFile(jobDetailsChannel chan *JobsDetails) {
+func saveResultToDb(jobDetailsChannel chan *JobsDetails) {
+
+	db, err := sql.Open("postgres", "host=localhost port=5432 user=postgres "+
+		"password=postgres dbname=karriereat sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	os.Remove("result.json")
 	f, err := os.OpenFile("result.json", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
-
 	sep := "\n"
-	defer f.Close()
 	for {
 		result := <-jobDetailsChannel
+
 		json, err := json.Marshal(result)
 		if err != nil {
 			panic(err)
 		}
-		//fmt.Println("", result.url, result.company, result.title, result.location, result.date)
-
-		f.WriteString(string(json) + sep)
+		go f.WriteString(string(json) + sep)
+		go func() {
+			_, err := db.Exec(`INSERT INTO jobs(url, title, company,location, date, content)
+	VALUES($1,$2,$3,$4,$5,$6)`, result.Url, result.Title, result.Company, result.Location, result.Date, result.Content)
+			if err != nil {
+				panic(err)
+			}
+		}()
 	}
 }
-
 func getNewColletcor() *colly.Collector {
 	c := colly.NewCollector(
 		colly.MaxDepth(2),
@@ -120,3 +137,5 @@ type JobsDetails struct {
 	Date     string
 	Content  string
 }
+
+//https://linuxhint.com/install-pgadmin4-ubuntu/
