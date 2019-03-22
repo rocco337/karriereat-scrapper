@@ -5,20 +5,88 @@ import (
 	"net"
 	"net/http"
 	"time"
-
 	"github.com/gocolly/colly"
+	"encoding/json"
+	"os"
 )
 
 const firstJobPageUrl string = "https://www.karriere.at/jobs?page=%d"
 
 func main() {
+    fmt.Println("Starting...")
 
-	scrapPage(fmt.Sprintf(firstJobPageUrl, 1), getNewColletcor())
+	var jobDetailsChannel chan *JobsDetails = make(chan *JobsDetails)
+	go saveResultToFile(jobDetailsChannel)
 
+	start := time.Now()
+	collector:= getNewColletcor()
+	scrapPage(fmt.Sprintf(firstJobPageUrl, 1),collector, jobDetailsChannel)
+	//scrapPage(fmt.Sprintf(firstJobPageUrl, 2), collector, jobDetailsChannel)
+	
+	elapsed := time.Since(start)
+    fmt.Println("Elapsed", elapsed)
+}
+
+func scrapPage(pageUrl string, collector *colly.Collector, c chan *JobsDetails) {	
+	collector.OnHTML(".m-jobItem__titleLink", func(e *colly.HTMLElement) {
+		link := e.Attr("href")
+
+		collector.Visit(link)
+	})
+
+	collector.OnHTML(".c-jobDetail", func(e *colly.HTMLElement) {
+		result := new(JobsDetails)			
+		result.Title = e.DOM.Find(".m-jobHeader__container .m-jobHeader__jobTitle").Text()
+		result.Company = e.DOM.Find(".m-jobHeader__container .m-jobHeader__companyName").Text()
+		
+		metaItems:= e.DOM.Find(".m-jobHeader__container .m-jobHeader__metaList li");
+		result.Location=metaItems.First().Text()
+		result.Date= metaItems.Last().Text()
+		
+		html:= e.DOM.Find(".m-jobContent__jobText").Text()
+		result.Content =html;
+		c <- result		
+	})
+
+	collector.OnRequest(func(r *colly.Request) {
+		fmt.Println("\nVisiting", r.URL.String())
+	})
+
+	collector.OnError(func(r *colly.Response, err error) {
+		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
+	})
+
+	collector.Visit(pageUrl)
+	collector.Wait()	
+}
+
+func saveResultToFile(jobDetailsChannel chan *JobsDetails){
+	os.Remove("result.json")
+	f, err := os.OpenFile("result.json",os.O_CREATE|os.O_WRONLY, os.ModeAppend) 
+	if err != nil {
+		panic(err)
+	}
+
+	sep:="\n"
+	defer f.Close()
+	for {
+		result := <- jobDetailsChannel		
+		json, err := json.Marshal(result)
+		if err != nil {
+			panic(err)				
+		}
+		//fmt.Println("", result.url, result.company, result.title, result.location, result.date)
+
+		f.WriteString(string(json) + sep) 	
+	}
 }
 
 func getNewColletcor() *colly.Collector {
-	c := colly.NewCollector()
+	c := colly.NewCollector(
+		colly.MaxDepth(2),
+		colly.Async(true),
+	)
+	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 4})
 	c.WithTransport(&http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -35,69 +103,12 @@ func getNewColletcor() *colly.Collector {
 	return c
 }
 
-func scrapPage(pageUrl string, collector *colly.Collector) {
-	result := new(JobsPageResult)
-
-	collector.OnHTML(".m-jobItem__titleLink", func(e *colly.HTMLElement) {
-		link := e.Attr("href")
-		result.jobLinks = append(result.jobLinks, link)
-	})
-
-	collector.OnRequest(func(r *colly.Request) {
-		fmt.Println("\nVisiting", r.URL.String())
-	})
-
-	collector.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
-	})
-
-	collector.Visit(pageUrl)
-
-	scrapDetailsPage(result.jobLinks)	
-}
-
-func scrapDetailsPage(jobLinks []string){
-	pageDetailsCollector := getNewColletcor()
-
-	pageDetailsCollector.OnHTML(".c-jobDetail", func(e *colly.HTMLElement) {
-		result := new(JobsDetails)	
-		result.title = e.DOM.Find(".m-jobHeader__container .m-jobHeader__jobTitle").Text()
-		result.company = e.DOM.Find(".m-jobHeader__container .m-jobHeader__companyName").Text()
-		
-		metaItems:= e.DOM.Find(".m-jobHeader__container .m-jobHeader__metaList li");
-
-		result.location=metaItems.First().Text()
-		result.date= metaItems.Last().Text()
-		
-		html:= e.DOM.Find(".m-jobContent__jobText").Text()
-		result.content =html;
-
-		fmt.Println("", result.url, result.company, result.title, result.location, result.date, result.content)
-	})
-
-	pageDetailsCollector.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL.String())
-	})
-
-	pageDetailsCollector.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
-	})
-
-	for _, link := range jobLinks {		
-		pageDetailsCollector.Visit(link)
-		break
-	}
-}
-
-type JobsPageResult struct {
-	jobLinks []string
-}
-
 type JobsDetails struct {
-	url      string
-	title    string
-	company  string
-	location string
-	date     string
-	content  string
+	Url      string
+	Title    string
+	Company  string
+	Location string
+	Date     string
+	Content  string
 }
+
