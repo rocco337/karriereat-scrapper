@@ -35,7 +35,7 @@ func getNewColletcor() *colly.Collector {
 	return c
 }
 
-func scrapPage(pageUrl string, collector *colly.Collector) *JobsPageResult {
+func scrapPage(pageUrl string, collector *colly.Collector) {
 	result := new(JobsPageResult)
 
 	collector.OnHTML(".m-jobItem__titleLink", func(e *colly.HTMLElement) {
@@ -53,37 +53,40 @@ func scrapPage(pageUrl string, collector *colly.Collector) *JobsPageResult {
 
 	collector.Visit(pageUrl)
 
-	for _, link := range result.jobLinks {
-		pageDetailsCollector := getNewColletcor()
-		scrapJobDetailsPage(link, pageDetailsCollector)
-	}
-
-	return result
+	scrapDetailsPage(result.jobLinks)	
 }
-func scrapJobDetailsPage(url string, collector *colly.Collector) *JobsDetails {
-	result := new(JobsDetails)
-	result.url = url
 
-	collector.OnHTML(".m-jobHeader__jobTitle", func(e *colly.HTMLElement) {
-		result.title = e.Text
+func scrapDetailsPage(jobLinks []string){
+	pageDetailsCollector := getNewColletcor()
+
+	pageDetailsCollector.OnHTML(".c-jobDetail", func(e *colly.HTMLElement) {
+		result := new(JobsDetails)	
+		result.title = e.DOM.Find(".m-jobHeader__container .m-jobHeader__jobTitle").Text()
+		result.company = e.DOM.Find(".m-jobHeader__container .m-jobHeader__companyName").Text()
+		
+		metaItems:= e.DOM.Find(".m-jobHeader__container .m-jobHeader__metaList li");
+
+		result.location=metaItems.First().Text()
+		result.date= metaItems.Last().Text()
+		
+		html:= e.DOM.Find(".m-jobContent__jobText").Text()
+		result.content =html;
+
+		fmt.Println("", result.url, result.company, result.title, result.location, result.date, result.content)
 	})
 
-	collector.OnHTML(".m-jobHeader__companyName", func(e *colly.HTMLElement) {
-		result.company = e.Text
+	pageDetailsCollector.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL.String())
 	})
 
-	collector.OnRequest(func(r *colly.Request) {
-		fmt.Println("\nVisiting", r.URL.String())
-	})
-
-	collector.OnError(func(r *colly.Response, err error) {
+	pageDetailsCollector.OnError(func(r *colly.Response, err error) {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 
-	collector.Visit(url)
-
-	fmt.Println("", result.url, result.company, result.title)
-	return result
+	for _, link := range jobLinks {		
+		pageDetailsCollector.Visit(link)
+		break
+	}
 }
 
 type JobsPageResult struct {
@@ -95,6 +98,6 @@ type JobsDetails struct {
 	title    string
 	company  string
 	location string
-	date     time.Time
+	date     string
 	content  string
 }
