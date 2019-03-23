@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -60,6 +61,7 @@ func scrapPage(noOfPAges int, c chan *JobsDetails) {
 
 	collector.OnError(func(r *colly.Response, err error) {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
+		panic(err)
 	})
 
 	i := 1
@@ -112,6 +114,12 @@ func getNewColletcor() *colly.Collector {
 		colly.MaxDepth(2),
 		colly.Async(true),
 	)
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("User-Agent", RandomString())
+	})
+	c.WithTransport(&http.Transport{
+		DisableKeepAlives: true,
+	})
 	c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 4})
 	c.WithTransport(&http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -127,6 +135,16 @@ func getNewColletcor() *colly.Collector {
 	})
 
 	return c
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandomString() string {
+	b := make([]byte, rand.Intn(10)+10)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }
 
 type JobsDetails struct {
