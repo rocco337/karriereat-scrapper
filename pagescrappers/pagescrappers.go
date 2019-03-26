@@ -1,32 +1,33 @@
 package pagescrappers
+
 import "karriereat-scrapper/dataaccess"
 import "karriereat-scrapper/filestorage"
 import (
 	"encoding/json"
-	"fmt"	
-	"time"
-	"net/http"
+	"fmt"
+	"math/rand"
 	"net"
+	"net/http"
+	"time"
+
 	"github.com/gocolly/colly"
 	_ "github.com/lib/pq"
-	"math/rand"
 )
 
 type PageScrapper struct {
 	FirstJobPageUrl string
-	NoOfPages int
-	JobDetailsChan chan *dataaccess.JobsDetails
+	NoOfPages       int
+	JobDetailsChan  chan *dataaccess.JobsDetails
 }
 
-
-func (scrapper *PageScrapper) Init(){
+func (scrapper *PageScrapper) Init() {
 	jobsDataAccess := new(dataaccess.JobsDataAccess)
 	jobsDataAccess.Init()
-	
-	fileStorage :=new(filestorage.FileStorage)
+
+	fileStorage := new(filestorage.FileStorage)
 	fileStorage.Init("result.json", true)
 
-	go func () {
+	go func() {
 		for {
 			jobDetails := <-scrapper.JobDetailsChan
 
@@ -42,7 +43,7 @@ func (scrapper *PageScrapper) Init(){
 
 }
 
-func (scrapper *PageScrapper) ScrapPageRecursively(currentPage int){
+func (scrapper *PageScrapper) ScrapPageRecursively(currentPage int) {
 	collector := scrapper.getCollector()
 
 	collector.OnHTML(".m-jobItem__titleLink", func(e *colly.HTMLElement) {
@@ -77,18 +78,18 @@ func (scrapper *PageScrapper) ScrapPageRecursively(currentPage int){
 	url := fmt.Sprintf(scrapper.FirstJobPageUrl, currentPage)
 	fmt.Println("Scrapping", url)
 	collector.Visit(url)
-	
-	if currentPage % 5 == 0 {
+
+	if currentPage%5 == 0 {
 		collector.Wait()
 	}
-	
-	if currentPage <= scrapper.NoOfPages{
+
+	if currentPage <= scrapper.NoOfPages {
 		currentPage = currentPage + 1
-		scrapper.ScrapPageRecursively(currentPage)	
+		scrapper.ScrapPageRecursively(currentPage)
 	}
 }
 
-func (scrapper *PageScrapper) getCollector()  *colly.Collector{
+func (scrapper *PageScrapper) getCollector() *colly.Collector {
 	c := colly.NewCollector(
 		colly.MaxDepth(2),
 		colly.Async(true),

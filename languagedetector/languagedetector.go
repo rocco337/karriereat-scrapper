@@ -22,6 +22,11 @@ func (languageDetector *LanguageDetector) Init() {
 	languageDetector.jobsDataAccess.Init()
 }
 
+func (languageDetector *LanguageDetector) Detect(content string) string {
+	info := whatlanggo.DetectWithOptions(content, languageDetector.options)
+	return info.Lang.Iso6391()
+}
+
 func (languageDetector *LanguageDetector) DetectAndSave() {
 	fileReader := new(filestorage.FileReader)
 	fileReader.Init("result.json")
