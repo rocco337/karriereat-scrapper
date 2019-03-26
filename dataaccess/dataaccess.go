@@ -1,13 +1,13 @@
-
 package dataaccess
 
 import "database/sql"
 import "log"
+
 type JobsDataAccess struct {
 	Db sql.DB
 }
 
-func (d *JobsDataAccess) Init(){
+func (d *JobsDataAccess) Init() {
 	db, err := sql.Open("postgres", "host=localhost port=5432 user=postgres "+
 		"password=postgres dbname=karriereat sslmode=disable")
 	if err != nil {
@@ -17,8 +17,15 @@ func (d *JobsDataAccess) Init(){
 }
 
 func (d *JobsDataAccess) SaveJobDetails(jobDetails *JobsDetails) {
-	_, err := d.Db.Exec(`INSERT INTO jobs1(url, title, company,location, date, content)
+	_, err := d.Db.Exec(`INSERT INTO jobs(url, title, company,location, date, content)
 	VALUES($1,$2,$3,$4,$5,$6)`, jobDetails.Url, jobDetails.Title, jobDetails.Company, jobDetails.Location, jobDetails.Date, jobDetails.Content)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (d *JobsDataAccess) SetLanguage(url string, lang string) {
+	_, err := d.Db.Exec("UPDATE jobs set lang=$1 where url=$2", lang, url)
 	if err != nil {
 		panic(err)
 	}
@@ -32,6 +39,5 @@ type JobsDetails struct {
 	Date     string
 	Content  string
 }
-
 
 //https://linuxhint.com/install-pgadmin4-ubuntu/
