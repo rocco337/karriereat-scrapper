@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"	
 	"karriereat-scrapper/pagescrappers"
-	"karriereat-scrapper/dataaccess"
-	"karriereat-scrapper/filestorage"
-
+	"karriereat-scrapper/dataaccess"	
+	"karriereat-scrapper/languagedetector"
 	"time"
 	_ "github.com/lib/pq"
+
 )
 
 func main() {
@@ -22,15 +22,11 @@ func main() {
 
 	//pageScrapper.Init()
 	//pageScrapper.ScrapPageRecursively(1)
-	fileReader :=new(filestorage.FileReader)
-	fileReader.Init("result.json")
-	fileReader.ReadAll()
-
+	
+	languagedetector := new(languagedetector.LanguageDetector)
+	languagedetector.Init()
+	languagedetector.DetectAndSave()
 	
 	elapsed := time.Since(start)
 	fmt.Println("Elapsed", elapsed)
 }
-
-
-
-

@@ -19,9 +19,17 @@ func (fileReader *FileReader) Init(filename string){
 	fileReader.scanner.Split(bufio.ScanLines)	
 }
 
-func (fileReader *FileReader) ReadAll(){
-	for fileReader.scanner.Scan() {
-		fmt.Println(fileReader.scanner.Text())
+// func (fileReader *FileReader) ReadAll(){
+// 	for fileReader.scanner.Scan() {
+// 		fmt.Println(fileReader.scanner.Text())
+// 	}
+// }
+
+func (fileReader *FileReader) ReadLine() (string, bool){
+	if fileReader.scanner.Scan() ==true{
+		return fileReader.scanner.Text(), false
 	}
+
+	return "", true
 }
 

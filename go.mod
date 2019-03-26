@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.0 // indirect
+	github.com/abadojack/whatlanggo v1.0.1
 	github.com/antchfx/htmlquery v1.0.0 // indirect
 	github.com/antchfx/xmlquery v1.0.0 // indirect
 	github.com/antchfx/xpath v0.0.0-20190319080838-ce1d48779e67 // indirect
