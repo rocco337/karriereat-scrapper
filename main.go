@@ -44,8 +44,14 @@ func main() {
 
 		reg, _ := regexp.Compile("[^a-zA-Z0-9]+")
 
-		cleanContent := stopwords.CleanString(jobsDetails.Content, "de", true)
-		words := strings.Fields(reg.ReplaceAllString(cleanContent, " "))
+		cleanContent := stopwords.CleanString(strings.ToLower(jobsDetails.Content), "de", true)
+
+		cleanContent = reg.ReplaceAllString(cleanContent, " ")
+
+		reg, _ = regexp.Compile(`&lt;/?.*?&gt;", " &lt;&gt; `)
+		cleanContent = reg.ReplaceAllString(cleanContent, "")
+
+		words := strings.Fields(cleanContent)
 		sort.Sort(byLength(words))
 
 		for _, word := range words {
