@@ -1,4 +1,5 @@
-package jobsdataaccess
+
+package dataaccess
 
 import "database/sql"
 import "log"
@@ -31,3 +32,6 @@ type JobsDetails struct {
 	Date     string
 	Content  string
 }
+
+
+//https://linuxhint.com/install-pgadmin4-ubuntu/
