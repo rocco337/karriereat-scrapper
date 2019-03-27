@@ -12,6 +12,8 @@ github.com/antchfx/xmlquery v1.0.0 h1:YuEPqexGG2opZKNc9JU3Zw6zFXwC47wNcy6/F8oKsr
 github.com/antchfx/xmlquery v1.0.0/go.mod h1:/+CnyD/DzHRnv2eRxrVbieRU/FIF6N0C+7oTtyUtCKk=
 github.com/antchfx/xpath v0.0.0-20190319080838-ce1d48779e67 h1:uj4UuiIs53RhHSySIupR1TEIouckjSfnljF3QbN1yh0=
 github.com/antchfx/xpath v0.0.0-20190319080838-ce1d48779e67/go.mod h1:Yee4kTMuNiPYJ7nSNorELQMr1J33uOpXDMByNYhvtNk=
+github.com/arpitgogia/rake v0.0.0-20180919172115-eef46a94533f h1:mh7LlwmTrwwen+vOGOnjo1WB+4gIb/fFfA/s/ERnH+Y=
+github.com/arpitgogia/rake v0.0.0-20180919172115-eef46a94533f/go.mod h1:k+iUQ3OPNke+b71tjoHRsTNNysBnemXsIuG+r1joNmg=
 github.com/bbalet/stopwords v1.0.0 h1:0TnGycCtY0zZi4ltKoOGRFIlZHv0WqpoIGUsObjztfo=
 github.com/bbalet/stopwords v1.0.0/go.mod h1:sAWrQoDMfqARGIn4s6dp7OW7ISrshUD8IP2q3KoqPjc=
 github.com/dchest/stemmer v0.0.0-20161207102402-66719a20c4b5 h1:Y8zPZQaUm5jRBMBbvSoPbQa8HCCORmJ6tkkyvvgNucM=

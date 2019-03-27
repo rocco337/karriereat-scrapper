@@ -13,6 +13,8 @@ import (
 
 	"github.com/bbalet/stopwords"
 	"github.com/dchest/stemmer/german"
+	//"github.com/arpitgogia/rake"
+	"github.com/afjoseph/RAKE.Go"
 )
 
 func main() {
@@ -35,6 +37,7 @@ func main() {
 	fileReader := new(filestorage.FileReader)
 	fileReader.Init("result.json")
 
+	fullContent:=""
 	line, endOfFile := fileReader.ReadLine()
 	for endOfFile == false {
 		jobsDetails := new(dataaccess.JobsDetails)
@@ -44,23 +47,33 @@ func main() {
 
 		reg, _ := regexp.Compile("[^a-zA-Z0-9]+")
 
-		cleanContent := stopwords.CleanString(strings.ToLower(jobsDetails.Content), "de", true)
-
+		cleanContent:=strings.ToLower(jobsDetails.Title)
 		cleanContent = reg.ReplaceAllString(cleanContent, " ")
+		cleanContent = stopwords.CleanString(cleanContent, "de", true)	
 
-		reg, _ = regexp.Compile(`&lt;/?.*?&gt;", " &lt;&gt; `)
-		cleanContent = reg.ReplaceAllString(cleanContent, "")
 
 		words := strings.Fields(cleanContent)
 		sort.Sort(byLength(words))
 
+		stemmed :=""
 		for _, word := range words {
+			stemmed = stemmed + " " + german.Stemmer.Stem(word)
 			fmt.Println(german.Stemmer.Stem(word))
 		}
-
-		//line, endOfFile = fileReader.ReadLine()
-		endOfFile = true
+		//fmt.Println(stemmed)
+		fullContent = fullContent + " " + stemmed
+		line, endOfFile = fileReader.ReadLine()
+		//endOfFile = true		
 	}
+	candidates := rake.RunRake(fullContent)
+
+	for _, candidate := range candidates {
+		fmt.Printf("%s --> %f\n", candidate.Key, candidate.Value)
+	}
+	// rakeResult :=rake.WithText(fullContent)
+	// 	for key, value := range rakeResult {
+	// 		fmt.Println(key, value)
+	// 	}
 	elapsed := time.Since(start)
 	fmt.Println("Elapsed", elapsed)
 }

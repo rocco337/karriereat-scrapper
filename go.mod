@@ -5,10 +5,11 @@ go 1.12
 require (
 	github.com/PuerkitoBio/goquery v1.5.0 // indirect
 	github.com/abadojack/whatlanggo v1.0.1
-	github.com/afjoseph/RAKE.Go v0.0.0-20181207222342-f0f99b2097df // indirect
+	github.com/afjoseph/RAKE.Go v0.0.0-20181207222342-f0f99b2097df
 	github.com/antchfx/htmlquery v1.0.0 // indirect
 	github.com/antchfx/xmlquery v1.0.0 // indirect
 	github.com/antchfx/xpath v0.0.0-20190319080838-ce1d48779e67 // indirect
+	github.com/arpitgogia/rake v0.0.0-20180919172115-eef46a94533f
 	github.com/bbalet/stopwords v1.0.0
 	github.com/dchest/stemmer v0.0.0-20161207102402-66719a20c4b5
 	github.com/gobwas/glob v0.2.3 // indirect
