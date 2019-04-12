@@ -17,6 +17,7 @@ require (
 	github.com/gocolly/colly v1.2.0
 	github.com/goglue/tfidf v0.0.0-20170630174740-c69c9f6354dd
 	github.com/kennygrant/sanitize v1.2.4 // indirect
+	github.com/kljensen/snowball v0.6.0
 	github.com/lib/pq v1.0.0
 	github.com/mingrammer/commonregex v1.0.0 // indirect
 	github.com/montanaflynn/stats v0.5.0 // indirect
