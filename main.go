@@ -9,6 +9,7 @@ import (
 	"time"
     "github.com/dchest/stemmer/german"
 	"sync"
+	"sort"
 	rake "github.com/afjoseph/RAKE.Go"
 )
 
@@ -32,53 +33,61 @@ func main() {
 	fileReader := new(filestorage.FileReader)
 	fileReader.Init("result.json")
 
+	//fileStorage:= new(filestorage.FileStorage)
+	//fileStorage.Init("phrases.json", true)
 
+	//mappedPhrases := extractPhrasesFromFile(fileReader, languagedetector)
+	//writePhrasesToFile(mappedPhrases, fileStorage)
 
-	fileStorage:= new(filestorage.FileStorage)
-	fileStorage.Init("phrases.json", true)
-
+	
 	phrasesFileReader := new(filestorage.FileReader)
 	phrasesFileReader.Init("phrases.json")
-
-	mappedPhrases := extractPhrasesFromFile(fileReader, languagedetector)
-	writePhrasesToFile(mappedPhrases, fileStorage)
-
-	//readPhrasesFromFile(phrasesFileReader)
 	
-
-	// fileReader.Init("result.json")	
-	// i=0
-	// line, endOfFile = fileReader.ReadLine()
-	// for endOfFile == false {
-	// 	line, endOfFile = fileReader.ReadLine()
+	mappedPhrases := readPhrasesFromFile(phrasesFileReader)	
+	extractKeywordsFromFiles(fileReader, languagedetector, mappedPhrases)
 	
-	// 	jobsDetails := new(dataaccess.JobsDetails)
-	// 	if err := json.Unmarshal([]byte(line), &jobsDetails); err != nil {
-	// 		panic(err)
-	// 	}
-
-	// 	fmt.Println("----",jobsDetails.Url, jobsDetails.Title)
-	// 	lang := languagedetector.Detect(jobsDetails.Content)
-	// 	if lang == "de" {
-	// 		ger := german.Stemmer			
-	// 		stemmed:= ger.Stem(jobsDetails.Content)
-	// 		candidates := rake.RunRakeI18N(stemmed, germanStopList)
-	// 		for _, phrase := range candidates {				
-	// 				_, ok :=mappedPhrases[phrase.Key]
-	// 				if ok {
-	// 					fmt.Println(phrase.Key, phrase.Value)
-	// 				}
-	// 		}	
-	// 	}
-				
-	// 	if i > 0 {
-	// 		endOfFile = true
-	// 	}
-	// 	i = i + 1
-	// }
 
 	elapsed := time.Since(start)
 	fmt.Println("Elapsed", elapsed)
+}
+
+
+func extractKeywordsFromFiles(fileReader *filestorage.FileReader,languagedetector *languagedetector.LanguageDetector,mappedPhrases map[string]int){
+	i:=0
+	line, endOfFile := fileReader.ReadLine()
+	for endOfFile == false {
+		line, endOfFile = fileReader.ReadLine()
+	
+		jobsDetails := new(dataaccess.JobsDetails)
+		if err := json.Unmarshal([]byte(line), &jobsDetails); err != nil {
+			panic(err)
+		}
+
+		fmt.Println("----",jobsDetails.Url, jobsDetails.Title)
+		lang := languagedetector.Detect(jobsDetails.Content)
+		if lang == "de" {
+			ger := german.Stemmer			
+			stemmed:= ger.Stem(jobsDetails.Content)
+			candidates := rake.RunRakeI18N(stemmed, germanStopList)
+
+			chosenPhrases:= make(map[string]int)
+			for _, phrase := range candidates {				
+				_, ok :=mappedPhrases[phrase.Key]
+				if ok {
+					chosenPhrases[phrase.Key] = mappedPhrases[phrase.Key]
+				}
+			}	
+
+			for _, phrase := range rankByWordCount(chosenPhrases) {	
+				fmt.Println(phrase.Key,phrase.Value)
+			}
+		}
+				
+		// if i > 0 {
+		// 	endOfFile = true
+		// }
+		i = i + 1
+	}
 }
 
 func mapPhrases(content string, mappedPhrases map[string]int, mutex *sync.Mutex, wg *sync.WaitGroup, counter int) {
@@ -126,11 +135,7 @@ func extractPhrasesFromFile(fileReader *filestorage.FileReader,languagedetector 
 }
 
 func writePhrasesToFile(phrases map[string]int,fileStorage *filestorage.FileStorage){
-	for key, value := range phrases {		
-		pair:= new(Pair)
-		pair.Key = key;
-		pair.Value = float64(value);
-
+	for _, pair := range rankByWordCount(phrases) {		
 		json, err := json.Marshal(pair)
 			if err != nil {
 				panic(err)
@@ -167,5 +172,16 @@ type PairList []Pair
 func (p PairList) Len() int           { return len(p) }
 func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
+
+func rankByWordCount(wordFrequencies map[string]int) PairList{
+	pl := make(PairList, len(wordFrequencies))
+	i := 0
+	for k, v := range wordFrequencies {
+	  pl[i] = Pair{k, float64(v)}
+	  i++
+	}
+	sort.Sort(sort.Reverse(pl))
+	return pl
+  }
 
 var germanStopList = []string{"ab", "aber", "ach", "acht", "achte", "achten", "achter", "achtes", "ag", "alle", "allein", "allem", "allen", "aller", "allerdings", "alles", "allgemeinen", "als", "also", "am", "an", "andere", "anderen", "andern", "anders", "au", "auch", "auf", "aus", "ausser", "außer", "ausserdem", "außerdem", "bald", "bei", "beide", "beiden", "beim", "beispiel", "bekannt", "bereits", "besonders", "besser", "besten", "bin", "bis", "bisher", "bist", "da", "dabei", "dadurch", "dafür", "dagegen", "daher", "dahin", "dahinter", "damals", "damit", "danach", "daneben", "dank", "dann", "daran", "darauf", "daraus", "darf", "darfst", "darin", "darüber", "darum", "darunter", "das", "dasein", "daselbst", "dass", "daß", "dasselbe", "davon", "davor", "dazu", "dazwischen", "dein", "deine", "deinem", "deiner", "dem", "dementsprechend", "demgegenüber", "demgemäss", "demgemäß", "demselben", "demzufolge", "den", "denen", "denn", "denselben", "der", "deren", "derjenige", "derjenigen", "dermassen", "dermaßen", "derselbe", "derselben", "des", "deshalb", "desselben", "dessen", "deswegen", "d.", "dich", "die", "diejenige", "diejenigen", "dies", "diese", "dieselbe", "dieselben", "diesem", "diesen", "dieser", "dieses", "dir", "doch", "dort", "drei", "drin", "dritte", "dritten", "dritter", "drittes", "du", "durch", "durchaus", "dürfen", "dürft", "durfte", "durften", "eben", "ebenso", "ehrlich", "ei", "eigen", "eigene", "eigenen", "eigener", "eigenes", "ein", "einander", "eine", "einem", "einen", "einer", "eines", "einige", "einigen", "einiger", "einiges", "einmal", "eins", "elf", "en", "ende", "endlich", "entweder", "er", "ernst", "erst", "erste", "ersten", "erster", "erstes", "es", "etwa", "etwas", "euch", "früher", "fünf", "fünfte", "fünften", "fünfter", "fünftes", "für", "gab", "ganz", "ganze", "ganzen", "ganzer", "ganzes", "gar", "gedurft", "gegen", "gegenüber", "gehabt", "gehen", "geht", "gekannt", "gekonnt", "gemacht", "gemocht", "gemusst", "genug", "gerade", "gern", "gesagt", "geschweige", "gewesen", "gewollt", "geworden", "gibt", "ging", "gleich", "gott", "gross", "groß", "grosse", "große", "grossen", "großen", "grosser", "großer", "grosses", "großes", "gut", "gute", "guter", "gutes", "habe", "haben", "habt", "hast", "hat", "hatte", "hätte", "hatten", "hätten", "heisst", "her", "heute", "hier", "hin", "hinter", "hoch", "ich", "ihm", "ihn", "ihnen", "ihr", "ihre", "ihrem", "ihren", "ihrer", "ihres", "im", "immer", "in", "indem", "infolgedessen", "ins", "irgend", "ist", "ja", "jahr", "jahre", "jahren", "je", "jede", "jedem", "jeden", "jeder", "jedermann", "jedermanns", "jedoch", "jemand", "jemandem", "jemanden", "jene", "jenem", "jenen", "jener", "jenes", "jetzt", "kam", "kann", "kannst", "kaum", "kein", "keine", "keinem", "keinen", "keiner", "kleine", "kleinen", "kleiner", "kleines", "kommen", "kommt", "können", "könnt", "konnte", "könnte", "konnten", "kurz", "lang", "lange", "leicht", "leide", "lieber", "los", "machen", "macht", "machte", "mag", "magst", "mahn", "man", "manche", "manchem", "manchen", "mancher", "manches", "mann", "mehr", "mein", "meine", "meinem", "meinen", "meiner", "meines", "mensch", "menschen", "mich", "mir", "mit", "mittel", "mochte", "möchte", "mochten", "mögen", "möglich", "mögt", "morgen", "muss", "muß", "müssen", "musst", "müsst", "musste", "mussten", "na", "nach", "nachdem", "nahm", "natürlich", "neben", "nein", "neue", "neuen", "neun", "neunte", "neunten", "neunter", "neuntes", "nicht", "nichts", "nie", "niemand", "niemandem", "niemanden", "noch", "nun", "nur", "ob", "oben", "oder", "offen", "oft", "ohne", "ordnung", "recht", "rechte", "rechten", "rechter", "rechtes", "richtig", "rund", "sa", "sache", "sagt", "sagte", "sah", "satt", "schlecht", "schluss", "schon", "sechs", "sechste", "sechsten", "sechster", "sechstes", "sehr", "sei", "seid", "seien", "sein", "seine", "seinem", "seinen", "seiner", "seines", "seit", "seitdem", "selbst", "sich", "sie", "sieben", "siebente", "siebenten", "siebenter", "siebentes", "sind", "so", "solang", "solche", "solchem", "solchen", "solcher", "solches", "soll", "sollen", "sollte", "sollten", "sondern", "sonst", "sowie", "später", "statt", "tag", "tage", "tagen", "tat", "teil", "tel", "tritt", "trotzdem", "tun", "über", "überhaupt", "übrigens", "uhr", "um", "und", "und?", "uns", "unser", "unsere", "unserer", "unter", "vergangenen", "viel", "viele", "vielem", "vielen", "vielleicht", "vier", "vierte", "vierten", "vierter", "viertes", "vom", "von", "vor", "wahr?", "während", "währenddem", "währenddessen", "wann", "war", "wäre", "waren", "wart", "warum", "was", "wegen", "weil", "weit", "weiter", "weitere", "weiteren", "weiteres", "welche", "welchem", "welchen", "welcher", "welches", "wem", "wen", "wenig", "wenige", "weniger", "weniges", "wenigstens", "wenn", "wer", "werde", "werden", "werdet", "wessen", "wie", "wieder", "will", "willst", "wir", "wird", "wirklich", "wirst", "wo", "wohl", "wollen", "wollt", "wollte", "wollten", "worden", "wurde", "würde", "wurden", "würden", "z.", "zehn", "zehnte", "zehnten", "zehnter", "zehntes", "zeit", "zu", "zuerst", "zugleich", "zum", "zunächst", "zur", "zurück", "zusammen", "zwanzig", "zwar", "zwei", "zweite", "zweiten", "zweiter", "zweites", "zwischen", "zwölf"}
