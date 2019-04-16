@@ -1,10 +1,9 @@
 package main
-
+import "karriereat-scrapper/filestorage"
 import (
 	"encoding/json"
 	"fmt"
 	"karriereat-scrapper/dataaccess"
-	"karriereat-scrapper/filestorage"
 	"karriereat-scrapper/languagedetector"
 	"karriereat-scrapper/pagescrappers"
 	"time"
@@ -33,10 +32,75 @@ func main() {
 	fileReader := new(filestorage.FileReader)
 	fileReader.Init("result.json")
 
-	var myWaitGroup sync.WaitGroup
 
+
+	fileStorage:= new(filestorage.FileStorage)
+	fileStorage.Init("phrases.json", true)
+
+	phrasesFileReader := new(filestorage.FileReader)
+	phrasesFileReader.Init("phrases.json")
+
+	mappedPhrases := extractPhrasesFromFile(fileReader, languagedetector)
+	writePhrasesToFile(mappedPhrases, fileStorage)
+
+	//readPhrasesFromFile(phrasesFileReader)
+	
+
+	// fileReader.Init("result.json")	
+	// i=0
+	// line, endOfFile = fileReader.ReadLine()
+	// for endOfFile == false {
+	// 	line, endOfFile = fileReader.ReadLine()
+	
+	// 	jobsDetails := new(dataaccess.JobsDetails)
+	// 	if err := json.Unmarshal([]byte(line), &jobsDetails); err != nil {
+	// 		panic(err)
+	// 	}
+
+	// 	fmt.Println("----",jobsDetails.Url, jobsDetails.Title)
+	// 	lang := languagedetector.Detect(jobsDetails.Content)
+	// 	if lang == "de" {
+	// 		ger := german.Stemmer			
+	// 		stemmed:= ger.Stem(jobsDetails.Content)
+	// 		candidates := rake.RunRakeI18N(stemmed, germanStopList)
+	// 		for _, phrase := range candidates {				
+	// 				_, ok :=mappedPhrases[phrase.Key]
+	// 				if ok {
+	// 					fmt.Println(phrase.Key, phrase.Value)
+	// 				}
+	// 		}	
+	// 	}
+				
+	// 	if i > 0 {
+	// 		endOfFile = true
+	// 	}
+	// 	i = i + 1
+	// }
+
+	elapsed := time.Since(start)
+	fmt.Println("Elapsed", elapsed)
+}
+
+func mapPhrases(content string, mappedPhrases map[string]int, mutex *sync.Mutex, wg *sync.WaitGroup, counter int) {
+	defer wg.Done()
+	defer fmt.Println(counter)
+
+	ger := german.Stemmer			
+	stemmed:= ger.Stem(content)
+
+	candidates := rake.RunRakeI18N(stemmed, germanStopList)
+	mutex.Lock()
+	for _, phrase := range candidates {	
+		mappedPhrases[phrase.Key]++
+	}	
+	mutex.Unlock()			
+}
+
+func extractPhrasesFromFile(fileReader *filestorage.FileReader,languagedetector *languagedetector.LanguageDetector) map[string]int{
 	i := 0
-	mappedPhrases:=make(chan map[string]int)
+	mappedPhrases:=make(map[string]int)
+	var mutex = &sync.Mutex{}
+	var myWaitGroup sync.WaitGroup
 
 	line, endOfFile := fileReader.ReadLine()
 	for endOfFile == false {
@@ -48,60 +112,48 @@ func main() {
 		lang := languagedetector.Detect(jobsDetails.Content)
 		if lang == "de" {
 			myWaitGroup.Add(1) 
-			go mapPhrases(jobsDetails.Content,mappedPhrases)	
+			go mapPhrases(jobsDetails.Content, mappedPhrases, mutex, &myWaitGroup, i)			
 		}
 
 		line, endOfFile = fileReader.ReadLine()
-		if i > 100 {
-			endOfFile = true
-		}
+		// if i > 100 {
+		// 	endOfFile = true
+		// }
 		i = i + 1
 	}
 	myWaitGroup.Wait()
+	return mappedPhrases
+}
 
-	fileReader.Init("result.json")	
-	i=0
-	line, endOfFile = fileReader.ReadLine()
+func writePhrasesToFile(phrases map[string]int,fileStorage *filestorage.FileStorage){
+	for key, value := range phrases {		
+		pair:= new(Pair)
+		pair.Key = key;
+		pair.Value = float64(value);
+
+		json, err := json.Marshal(pair)
+			if err != nil {
+				panic(err)
+			}
+
+		fileStorage.AppendLine(string(json))
+	}
+}
+
+func readPhrasesFromFile(fileReader *filestorage.FileReader) map[string]int{
+	mappedPhrases:=make(map[string]int)
+	line, endOfFile := fileReader.ReadLine()
 	for endOfFile == false {
-		line, endOfFile = fileReader.ReadLine()
-	
-		jobsDetails := new(dataaccess.JobsDetails)
-		if err := json.Unmarshal([]byte(line), &jobsDetails); err != nil {
+		phrase := new(Pair)
+		if err := json.Unmarshal([]byte(line), &phrase); err != nil {
 			panic(err)
 		}
 
-		fmt.Println("----",jobsDetails.Url, jobsDetails.Title)
-		lang := languagedetector.Detect(jobsDetails.Content)
-		if lang == "de" {
-			ger := german.Stemmer			
-			stemmed:= ger.Stem(jobsDetails.Content)
-			candidates := rake.RunRakeI18N(stemmed, germanStopList)
-			for _, phrase := range candidates {				
-					_, ok :=mappedPhrases[phrase.Key]
-					if ok {
-						fmt.Println(phrase.Key, phrase.Value)
-					}
-			}	
-		}
-				
-		if i > 0 {
-			endOfFile = true
-		}
-		i = i + 1
+		mappedPhrases[phrase.Key] = int(phrase.Value)
+		line, endOfFile = fileReader.ReadLine()
 	}
 
-	elapsed := time.Since(start)
-	fmt.Println("Elapsed", elapsed)
-}
-
-func mapPhrases(content string, mappedPhrases chan map[string]int) {
-	ger := german.Stemmer			
-	stemmed:= ger.Stem(content)
-
-	candidates := rake.RunRakeI18N(stemmed, germanStopList)
-	for _, phrase := range candidates {				
-		mappedPhrases[phrase.Key] <- 1
-	}		
+	return mappedPhrases
 }
 
 type Pair struct {
