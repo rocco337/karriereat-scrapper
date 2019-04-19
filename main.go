@@ -32,13 +32,14 @@ func main() {
 	fileReader := new(filestorage.FileReader)
 	fileReader.Init("result.json")
 
-	//fileStorage:= new(filestorage.FileStorage)
-	//fileStorage.Init("phrases.json", true)
-
-	//mappedPhrases := extractPhrasesFromFile(fileReader, languagedetector)
-	//writePhrasesToFile(mappedPhrases, fileStorage)
-
 	phraseextractor:=new (phraseextractor.Phraseextractor)
+
+	// fileStorage:= new(filestorage.FileStorage)
+	// fileStorage.Init("phrases.json", true)
+
+	// mappedPhrases := phraseextractor.ExtractPhrasesFromFile(fileReader, languagedetector)
+	// phraseextractor.WritePhrasesToFile(mappedPhrases, fileStorage)
+
 	
 	phrasesFileReader := new(filestorage.FileReader)
 	phrasesFileReader.Init("phrases.json")
@@ -46,7 +47,6 @@ func main() {
 	mappedPhrases := phraseextractor.ReadPhrasesFromFile(phrasesFileReader)	
 	extractKeywordsFromFiles(fileReader, languagedetector, mappedPhrases)
 	
-
 	elapsed := time.Since(start)
 	fmt.Println("Elapsed", elapsed)
 }

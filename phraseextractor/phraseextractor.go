@@ -46,8 +46,9 @@ func (extractor *Phraseextractor) ExtractPhrasesFromFile(fileReader *filestorage
 
 		lang := languagedetector.Detect(jobsDetails.Content)
 		if lang == "de" {
-			myWaitGroup.Add(1) 
-			go extractor.MapPhrases(jobsDetails.Content, mappedPhrases, mutex, &myWaitGroup, i)			
+			myWaitGroup.Add(2) 
+			go extractor.MapPhrases(jobsDetails.Content, mappedPhrases, mutex, &myWaitGroup, i)		
+			go extractor.MapPhrases(jobsDetails.Title, mappedPhrases, mutex, &myWaitGroup, i)			
 		}
 
 		line, endOfFile = fileReader.ReadLine()
@@ -57,6 +58,19 @@ func (extractor *Phraseextractor) ExtractPhrasesFromFile(fileReader *filestorage
 		i = i + 1
 	}
 	myWaitGroup.Wait()
+
+	for key, _:= range mappedPhrases{
+		if len(key)<=1{
+			delete(mappedPhrases, key);
+		}else{
+			for _, stopWord := range GermanStopList {
+				if stopWord == key {
+					delete(mappedPhrases, key);
+					break;
+				}
+			}
+		}
+	}
 	return mappedPhrases
 }
 
